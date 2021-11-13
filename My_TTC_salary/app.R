@@ -44,6 +44,12 @@ ui <- fluidPage(
             multiple = F,
             selected = "Sch of Med & Public Health"
           ),
+          radioButtons(
+            "comparison_select",
+            "Compare across all campus or within school/division?",
+            c("Across campus" = "campus",
+              "Within school/division" = "school")
+          ),
           actionButton("goButton", "Submit"),
           p(),
           p(a(img(src="img/UFAS_logo.png", width = '90%'), href = "http://ufas.wi.aft.org/"))
@@ -53,7 +59,7 @@ ui <- fluidPage(
         mainPanel(
            plotOutput("salaryPlot"),
            textOutput("positionSummary"),
-           p(br(),"The plot shows the actual salaries of all other employees across campus (light grey dots) that have the same job title as you. The bar represents the median salary; the box shows the interquartile range (25th-75th percentile); and the whiskers represent 1.75 times the interquartile range. The chart does not include the TTC salary range (i.e. the min/max salary) for your job title."),
+           p(br(),"The plot shows the actual salaries of all other employees (light grey dots) that have the same job title as you. You can either compare salaries in the same title across campus or only within your school/division. The bar represents the median salary; the box shows the interquartile range (25th-75th percentile); and the whiskers represent 1.75 times the interquartile range. The chart does not include the TTC salary range (i.e. the min/max salary) for your job title."),
            p(br(),"If you have multiple appointments, only one will be shown at a time. Honorary/0% appointments are excluded."),
            p("Are you a member of", a("United Faculty & Academic Staff Local 223", href="http://ufas.wi.aft.org/join-union"), "yet? Without our union, we wouldn't have these data."),
            p("App development: Harald Kliems", a("@HaraldKliems", href="https://twitter.com/HaraldKliems"))
@@ -61,7 +67,7 @@ ui <- fluidPage(
     )
 )
 
-# Define server logic required to draw a histogram
+# Define server logic 
 server <- function(input, output) {
 
 
@@ -72,7 +78,18 @@ server <- function(input, output) {
       my_division <- isolate(input$division_input)
       my_title <- ttc %>% filter(last_name == my_last_name & first_name == my_first_name & division == my_division) %>% pull(title)
       
-      salaries <- ttc %>% filter(title == my_title)
+      salaries <- reactive({
+        salary_filtered <- ttc %>% filter(title == my_title)
+        if(input$comparison_select == "campus")
+          salary_filtered
+        if(input$comparison_select == "school")
+          salary_filtered <- salary_filtered %>% filter(division == my_division)
+        
+        salary_filtered
+      }
+        
+      )
+      salaries <- salaries() %>% filter(title == my_title)
       ggplot(salaries, aes(current_annual_contracted_salary, title)) +
         geom_boxplot(size = 1, outlier.shape = NA, alpha = .1) +
         geom_jitter(height = 0.1, alpha = .3) +
