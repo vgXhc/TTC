@@ -44,17 +44,19 @@ ui <- fluidPage(
             multiple = F,
             selected = "Sch of Med & Public Health"
           ),
-          actionButton("goButton", "Submit")
+          actionButton("goButton", "Submit"),
+          p(),
+          p(a(img(src="img/UFAS_logo.png", width = '90%'), href = "http://ufas.wi.aft.org/"))
           
           ),
         # Show a plot of the generated distribution
         mainPanel(
            plotOutput("salaryPlot"),
            textOutput("positionSummary"),
-           p(br(),"The plot shows the actual salaries of all other employees (light grey dots) that have the same job title as you. The bar represents the median salary; the box shows the interquartile range (25th-75th percentile); and the whiskers represent 1.75 times the interquartile range. The chart does not include the TTC salary range (i.e. the min/max salary) for your job title."),
+           p(br(),"The plot shows the actual salaries of all other employees across campus (light grey dots) that have the same job title as you. The bar represents the median salary; the box shows the interquartile range (25th-75th percentile); and the whiskers represent 1.75 times the interquartile range. The chart does not include the TTC salary range (i.e. the min/max salary) for your job title."),
            p(br(),"If you have multiple appointments, only one will be shown at a time. Honorary/0% appointments are excluded."),
            p("Are you a member of", a("United Faculty & Academic Staff Local 223", href="http://ufas.wi.aft.org/join-union"), "yet? Without our union, we wouldn't have these data."),
-           p("App programming: Harald Kliems", a("@HaraldKliems", href="https://twitter.com/HaraldKliems"))
+           p("App development: Harald Kliems", a("@HaraldKliems", href="https://twitter.com/HaraldKliems"))
         )
     )
 )
@@ -72,7 +74,7 @@ server <- function(input, output) {
       
       salaries <- ttc %>% filter(title == my_title)
       ggplot(salaries, aes(current_annual_contracted_salary, title)) +
-        geom_boxplot(size = 1, outlier.shape = NA) +
+        geom_boxplot(size = 1, outlier.shape = NA, alpha = .1) +
         geom_jitter(height = 0.1, alpha = .3) +
         scale_x_continuous(labels=scales::dollar_format()) +
         geom_point(data = ttc %>% filter(last_name == my_last_name & first_name == my_first_name & division == my_division), color = "red", size = 5) +

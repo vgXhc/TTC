@@ -5,9 +5,9 @@ account: vgxhc
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 5117060
-bundleId: 5248183
+bundleId: 5248895
 url: https://haraldkliems.shinyapps.io/My_TTC_salary/
-when: 1636818503.57865
-lastSyncTime: 1636818503.57965
+when: 1636842453.98494
+lastSyncTime: 1636842453.98494
 asMultiple: FALSE
 asStatic: FALSE
