@@ -17,6 +17,11 @@ ttc <- read_xlsx("All Faculty and Staff Title and Salary Information - Post-TTC 
   janitor::clean_names() %>% 
   filter(full_time_equivalent > 0.01 & current_annual_contracted_salary > 1000)
 
+salary_ranges <- readRDS("www/salary_ranges.RDS")
+
+ttc <- ttc %>% 
+  left_join(salary_ranges, by = "salary_grade")
+
 divisions <- ttc %>% arrange(division) %>% distinct(division) %>% pull()
 
 # Define UI for application that draws a histogram
@@ -59,7 +64,9 @@ ui <- fluidPage(
         mainPanel(
            plotOutput("salaryPlot"),
            textOutput("positionSummary"),
-           p(br(),"The plot shows the actual salaries of all other employees (light grey dots) that have the same job title as you. You can either compare salaries in the same title across campus or only within your school/division. The bar represents the median salary; the box shows the interquartile range (25th-75th percentile); and the whiskers represent 1.75 times the interquartile range. The chart does not include the TTC salary range (i.e. the min/max salary) for your job title."),
+           p(br(),"On top, the plot shows the actual salaries of all other employees (light grey dots) that have the same job title as you. You can either compare salaries in the same title across campus or only within your school/division.", 
+             br(), 
+             "In the lower part of the plot, you see the salary range for your job, represented by the arrow, again with your salary as a red dot. Not all job titles have a maximum salary."),
            p(br(),"If you have multiple appointments, only one will be shown at a time. Honorary/0% appointments are excluded."),
            p("Are you a member of", a("United Faculty & Academic Staff Local 223", href="http://ufas.wi.aft.org/join-union"), "yet? Without our union, we wouldn't have these data."),
            p("App development: Harald Kliems", a("@HaraldKliems", href="https://twitter.com/HaraldKliems"))
@@ -91,19 +98,32 @@ server <- function(input, output) {
       )
       salaries <- salaries() %>% filter(title == my_title)
       ggplot(salaries, aes(current_annual_contracted_salary, title)) +
-        geom_boxplot(size = 1, outlier.shape = NA, alpha = .1) +
+        geom_boxplot(size = 1, outlier.shape = NA, width = .5, alpha = .1) +
         geom_jitter(height = 0.1, alpha = .3) +
+        geom_segment(aes(x = min_salary, xend = max_salary, y = 0.6, yend = 0.6), size = 2, arrow = arrow()) +
+        geom_text(aes(label = paste0("Min salary \n", title), x = min_salary, y = 0.5), hjust = 0)+
+        geom_text(aes(label = paste0("Max salary \n", title), x = max_salary, y = 0.5), hjust = 1)+
         scale_x_continuous(labels=scales::dollar_format()) +
         geom_point(data = ttc %>% filter(last_name == my_last_name & first_name == my_first_name & division == my_division), color = "red", size = 5) +
         geom_text(data = ttc %>% filter(last_name == my_last_name & first_name == my_first_name & division == my_division), label = "you", nudge_y = .13, color = "red", size = 5) +
-        labs(title = "Your current salary, compared to all salaries in your job title.", 
+        labs(title = "Your salary, compared to all salaries and the salary range in your job title", 
              #subtitle = "The box plot shows the median (bar), interquartile range (box), 1.5 * the IQR (whiskers), and outliers (black dots)",
              x = "Annual salary (adjusted for FTE)"
              ) +
         theme_minimal() +
+        geom_point(aes(min_salary, y = .6), size = 3) +
+        #geom_point(aes(max_salary, y = .6), size = 3) +
+        geom_point(data = ttc %>% filter(last_name == my_last_name & first_name == my_first_name & division == my_division), aes(current_annual_contracted_salary, y = 0.6), color = "red", size = 3) +
         theme(axis.title.y = element_blank())
-        # generate bins based on input$bins from ui.R
+
         
+#        geom_point(aes(max_salary, title), color = "green", size = 3)
+      
+      # geom_segment(x = -2, y = 1,
+      #              xend = 1, yend = -1,
+      #              color = 2,
+      #              arrow = arrow())
+      #   
     })
     output$positionSummary <- renderText({
       input$goButton
@@ -112,7 +132,29 @@ server <- function(input, output) {
       my_salary <- ttc_filtered %>% pull(current_annual_contracted_salary)
       my_division <- ttc_filtered %>% pull(division)
       my_department <- ttc_filtered %>% pull(department)
-      paste0("Your title is ", my_title, " in the ", my_division, "'s Department of ", my_department, ".\nYour annual salary (adjusted for FTE) is $", my_salary, ".")
+      my_title_min <- ttc_filtered %>% pull(min_salary)
+      my_title_max <- ttc_filtered %>% pull(max_salary)
+      
+      my_title_max_formatted <- if_else(is.na(my_title_max), 
+                                        "; there is no maximum salary for your title. ", 
+                                        paste0("; the maximum salary for your title is $", 
+                                               my_title_max,
+                                               ". Your current salary is at ",
+                                               round(my_salary/my_title_max, 1)*100,
+                                               "% of your title's max salary."),)
+      
+
+      
+      paste0("Your title is ",
+             my_title, 
+             " in the ", 
+             my_division, 
+             "'s Department of ", 
+             my_department, 
+             ".\nYour annual salary (adjusted for FTE) is $", 
+             my_salary, ".", "The minimum salary of your title is $", 
+             my_title_min,
+             my_title_max_formatted)
     })
 }
 
