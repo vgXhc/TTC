@@ -1,0 +1,273 @@
+---
+title: "TTC data"
+author: "Harald Kliems"
+date: "11/11/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(hrbrthemes)
+library(cowplot)
+library(magick)
+```
+
+# Read in data
+```{r}
+ttc <- read_xlsx("data/All Faculty and Staff Title and Salary Information - Post-TTC and Pre-TTC.xlsx") %>% 
+  janitor::clean_names()
+```
+
+The first two letters of the `job_code` distinguish between different Job Categories. For example, a `job_code` starting with "RE" is in the Research category. We'll extract that category.
+
+```{r}
+ttc <- ttc %>% 
+  mutate(job_category = substr(job_code, 1, 2))
+```
+
+
+```{r}
+ttc %>% 
+  filter(title %in% c("Researcher III", "Researcher II", "Researcher I")) %>% 
+  filter(division %in% c("Sch of Med & Public Health", 
+                         "College of Letters & Science", 
+                         "School of Education", 
+                         "VC for Rsrch & Grad Education",
+                         "College of Ag & Life Science", 
+                         "College of Engineering")) %>% 
+  filter(full_time_equivalent > 0.05) %>% 
+  filter(current_annual_contracted_salary > 1000) %>% 
+  ggplot(aes(title, current_annual_contracted_salary)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(alpha = .3, width = .2)+
+  facet_wrap(~division) +
+  theme_minimal()
+```
+
+```{r}
+bg <- image_read("UFAS_logo.png")
+# %>%
+#   image_colorize(70, "white")
+
+high <- ttc %>% 
+  group_by(title) %>% 
+  summarize(mean_salary = mean(current_annual_contracted_salary)) %>% 
+  arrange(desc(mean_salary)) %>% 
+  head(10) %>% 
+  mutate(title = fct_reorder(title, mean_salary)) %>% 
+  ggplot(aes(title, mean_salary)) +
+  geom_point() +  
+  labs(title = "... highest and ...") +
+    geom_text(aes(label = scales::dollar(mean_salary)),
+            #hjust = 1,
+            #color = "white",
+            nudge_y = 40000,
+            family = font_rc) +
+  theme_ipsum_rc() +
+  ylab(NULL)+
+  scale_y_continuous(limits = c(0, 650000)) +
+  theme(axis.title.y = element_blank(),
+        panel.grid.major.y = element_blank(),
+        axis.text.x = element_blank(),
+        plot.margin = unit(c(1,1,1,1), "lines")
+        ) +
+  coord_flip()
+
+low <-  ttc %>% 
+  filter(current_annual_contracted_salary >1000) %>% 
+  group_by(title) %>% 
+  summarize(mean_salary = mean(current_annual_contracted_salary)) %>% 
+  arrange(mean_salary) %>% 
+  head(10) %>% 
+  mutate(title = fct_reorder(title, mean_salary)) %>% 
+  ggplot(aes(title, mean_salary)) +
+  geom_point() +  
+  labs(title = "... lowest mean salary") +
+  coord_flip() +
+      geom_text(aes(label = scales::dollar(mean_salary, accuracy = 1)),
+           #hjust = -1,
+            #color = "black",
+           nudge_y = 40000,
+           family = font_rc
+            ) +
+  theme_ipsum_rc() +
+  ylab("Mean annual salary")+
+  scale_y_continuous(labels=scales::dollar_format(), limits = c(0, 650000)) +
+  theme(axis.title.y = element_blank(),
+        panel.grid.major.y = element_blank(),
+        plot.margin = unit(c(-.5,1,1,1), "lines")
+        )
+
+
+plot_row <- 
+  plot_grid(high, low, ncol = 1)
+
+title <- ggdraw() + 
+  draw_label(
+    "The 10 job titles at UW-Madison with the ...",
+    fontface = 'bold',
+    fontfamily = font_rc,
+    size = 20,
+    x = 0,
+    hjust = 0
+  ) +
+  theme(
+    # add margin on the left of the drawing canvas,
+    # so title is aligned with left edge of first plot
+    plot.margin = margin(0,0,0,140)
+  )
+p <- plot_grid(
+  title, plot_row,
+  ncol = 1,
+  # rel_heights values control vertical title margins
+  rel_heights = c(0.1, 1)
+)
+
+g <- ggdraw() +
+  draw_image(bg,scale = .2, x = 1,
+    hjust = 1, halign = 0, valign = 1) +
+  draw_plot(p) 
+
+library(ragg)
+  agg_png("topbottom10.png", width = 20, height = 12, units = "cm", res = 300)
+  plot(g)
+invisible(dev.off())
+```
+
+
+Adam was interested in whisker plots for all research titles.
+
+```{r}
+ttc %>% 
+  filter(current_annual_contracted_salary >1000) %>% 
+  filter(job_category == "RE") %>% 
+  mutate(title = fct_reorder(title, current_annual_contracted_salary, median)) %>% 
+  ggplot(aes(title, current_annual_contracted_salary)) +
+  geom_boxplot() +
+  coord_flip() +
+  scale_x_continuous(labels = "comma") +
+  labs(x = element_blank())
+```
+
+
+# Parsing the job title library
+This kinda failed.
+```{r}
+library(jsonlite)
+library(rvest)
+curlSetOpt(useragent = "Mozilla/5.0")
+ttc_lib <- getURI("https://hr.wisc.edu/db/api.php?q=jd")
+
+web_page <- read_html("https://hr.wisc.edu/db/api.php?q=jd")
+
+job_titles <- web_page %>% html_nodes(".col-1") %>% html_text()
+
+salary <- web_page %>% html_nodes(".job-salary .linkFilter") %>% html_text()
+
+job_group <- web_page %>% html_nodes(".col-3 .linkFilter") %>% html_text()
+
+job_subgroup <- web_page %>% html_nodes(".col-4 .linkFilter") %>% html_text()
+
+employee_category <- web_page %>% html_nodes(".Category .linkFilter") %>% html_text()
+
+ttc_lib_clean <- tibble(job_title = job_titles, salary = salary, job_group = job_group, job_subgroup = job_subgroup, employee_category = employee_category) 
+
+salary2 <- web_page %>% html_nodes(".salary-details .job-salary") %>% html_text()
+
+#there are a few scaled jobs that are listed with a singular salary, requiring manual fixes
+salary3 <- c(salary2[1:337], salary2[337], salary[338:1466])
+
+job_title2 <- web_page %>% html_nodes(".job-code-detail p") %>% html_text2()
+
+job_title3 <- str_split(job_title2, "\\n") %>% unlist()
+
+title_salary <- tibble(title2 = job_title3[1:1466], salary2 = salary3)
+
+title_salary %>% 
+  filter(grepl("(B)", title2)) %>% view()
+```
+
+## Another attempt at salary ranges
+https://hr.wisc.edu/pay/salary-structure/
+
+The page uses jquery and so I had to semi-manually retrieve the salaries in two steps. Save web page as txt file, manually edit to the first salary range and then use `read_delim`. For the second set of ranges, it's more messy. I used Reader mode in Firefox, copied the table into LibreOffice Calc, and then saved as a csv.
+
+```{r}
+salaries1 <- read_delim("data/Salary Structure – Human Resources – UW–Madison 1", delim = "\t", skip = 1,
+                        col_names = c("salary_grade", "salary_range", "salary_range_hourly", "salary_range_9mo", "salary_range_hourly_9mo")) %>% 
+  select(salary_grade, salary_range) %>% 
+    mutate(salary_range = str_remove_all(salary_range, "[,\\$]")) %>% 
+  separate(salary_range, c("min_salary", "max_salary"), sep = "–") %>% 
+  mutate(across(ends_with("_salary"), as.numeric))
+
+salaries2 <- read_csv("data/salaries_2.csv") %>% 
+  mutate(salary_range = str_remove(salary_range, fixed(" (Minimum)"))) %>% 
+  mutate(salary_range = case_when(str_detect(salary_range, fixed("$")) ~ salary_range,
+                                  TRUE~ NA_character_)) %>% 
+  mutate(salary_range = str_remove_all(salary_range, "[,\\$]")) %>% 
+  separate(salary_range, c("min_salary", "max_salary"), sep = "–") %>% 
+  mutate(across(ends_with("_salary"), as.numeric))
+
+#add leading 0 to match ttc data
+salary_ranges <- bind_rows(salaries1, salaries2) %>% 
+  mutate(salary_grade = as.character(salary_grade),
+         salary_grade = str_pad(salary_grade, 3, side = "left", pad = "0"))
+
+saveRDS(salary_ranges, "My_TTC_salary/www/salary_ranges.RDS")
+```
+
+
+### March 2022 data
+Redoing this for the March date (where salary ranges have changed):
+
+```{r}
+salaries1 <- read_delim("data/Salary Structure – Human Resources – UW–Madison March 2022.txt", delim = "\t", skip = 1,
+                        col_names = c("salary_grade", "salary_range", "salary_range_hourly", "salary_range_9mo", "salary_range_hourly_9mo")) %>% 
+  select(salary_grade, salary_range) %>% 
+    mutate(salary_range = str_remove_all(salary_range, "[,\\$]")) %>% 
+  separate(salary_range, c("min_salary", "max_salary"), sep = "–") %>% 
+  mutate(across(ends_with("_salary"), as.numeric))
+
+salaries2 <- read_csv("data/salaries_2_march2022.csv") %>% 
+  mutate(salary_range = str_remove(salary_range, fixed(" (Minimum)"))) %>% 
+  mutate(salary_range = case_when(str_detect(salary_range, fixed("$")) ~ salary_range,
+                                  TRUE~ NA_character_)) %>% 
+  mutate(salary_range = str_remove_all(salary_range, "[,\\$]")) %>% 
+  separate(salary_range, c("min_salary", "max_salary"), sep = "–") %>% 
+  mutate(across(ends_with("_salary"), as.numeric))
+
+salary_ranges <- bind_rows(salaries1, salaries2) %>% 
+  mutate(salary_grade = as.character(salary_grade),
+         salary_grade = str_pad(salary_grade, 3, side = "left", pad = "0"))
+
+saveRDS(salary_ranges, "My_TTC_salary/www/salary_ranges_mar2022.RDS")
+```
+Don't be detracted by the warning messages. This works just fine.
+
+
+```{r}
+
+library(gghighlight)
+ttc %>% 
+  filter(title == "Researcher III" & current_annual_contracted_salary > 1000) %>% 
+  ggplot(aes(current_annual_contracted_salary, title)) +
+  geom_boxplot() +
+  geom_point(data = ttc %>% filter(last_name == "KLIEMS"), color = "red", size = 5)
+```
+
+
+
+```{r}
+ttc %>% 
+  filter(title == "Research Program Manager") %>% 
+  arrange(division, department, last_name) %>% 
+  write_csv("ResProgMan.csv")
+```
+
