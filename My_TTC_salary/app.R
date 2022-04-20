@@ -64,12 +64,14 @@ ui <- fluidPage(
         mainPanel(
            plotOutput("salaryPlot"),
            textOutput("positionSummary"),
-           p(br(),"On top, the plot shows the actual salaries of all other employees (light grey dots) that have the same job title as you. The thick black line is the median; the box represents the range from the 2th to 75th percentile. You can either compare salaries in the same title across campus or only within your school/division.", 
+           p(br(),"On top, the plot shows the actual salaries of all other employees (light grey dots) that have the same job title as you. The thick black line is the median; the box represents the range from the 25th to 75th percentile. You can either compare salaries in the same title across campus or only within your school/division.", 
              br(), 
              "In the lower part of the plot, you see the salary range for your job, represented by the arrow, again with your salary as a red dot. Not all job titles have a maximum salary."),
            p(br(),"If you have multiple appointments, only one will be shown at a time. Honorary/0% appointments are excluded."),
            p("Are you a member of", a("United Faculty & Academic Staff Local 223", href="http://ufas.wi.aft.org/join-union"), "yet? Without our union, we wouldn't have these data."),
-           p("Salary data last updated: March 2022"),
+           p("Salary and salary range data last updated: March 1, 2022",
+             br(),
+             "Note that since March numerous changes to salary ranges, especially for IT positions, have been made."),
            p("App development: Harald Kliems", a("@HaraldKliems", href="https://twitter.com/HaraldKliems"))
         )
     )
