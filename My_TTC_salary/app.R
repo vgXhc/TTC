@@ -13,11 +13,11 @@ library(dplyr)
 library(ggplot2)
 library(stringr)
 
-  ttc <- read_xlsx("Updated March 2022 All Faculty and Staff Title and Salary Information.xlsx") %>% 
+  ttc <- read_xlsx("Updated August 2022 All Faculty and Staff Title and Salary Information.xlsx") %>% 
   janitor::clean_names() %>% 
   filter(full_time_equivalent > 0.01 & current_annual_contracted_salary > 1000)
 
-salary_ranges <- readRDS("www/salary_ranges_mar2022.RDS")
+salary_ranges <- readRDS("www/salary_ranges_sep2022.RDS")
 
 ttc <- ttc %>% 
   left_join(salary_ranges, by = "salary_grade")
@@ -29,6 +29,13 @@ ui <- fluidPage(
 
     # Application title
     titlePanel("How does my salary compare"),
+    
+    fluidRow(
+      column(10, offset = 1,
+             p(
+               em("This app will be retired by April 1, 2024. Please update your bookmarks to", a("https://ufas223.github.io/salaries/", href = "https://ufas223.github.io/salaries/"))
+             ))
+    ),
 
     # Sidebar with a slider input for number of bins 
     sidebarLayout(
@@ -69,9 +76,9 @@ ui <- fluidPage(
              "In the lower part of the plot, you see the salary range for your job, represented by the arrow, again with your salary as a red dot. Not all job titles have a maximum salary."),
            p(br(),"If you have multiple appointments, only one will be shown at a time. Honorary/0% appointments are excluded."),
            p("Are you a member of", a("United Faculty & Academic Staff Local 223", href="http://ufas.wi.aft.org/join-union"), "yet? Without our union, we wouldn't have these data."),
-           p("Salary and salary range data last updated: March 1, 2022",
+           p("Salary data last updated: August 2022",
              br(),
-             "Note that since March numerous changes to salary ranges, especially for IT positions, have been made."),
+             "Salary ranges last updated: September 16, 2022"),
            p("App development: Harald Kliems", a("@HaraldKliems", href="https://twitter.com/HaraldKliems"))
         )
     )
@@ -140,8 +147,8 @@ server <- function(input, output) {
       
       my_title_max_formatted <- if_else(is.na(my_title_max), 
                                         "; there is no maximum salary for your title. ", 
-                                        paste0("; the maximum salary for your title is $", 
-                                               my_title_max,
+                                        paste0("; the maximum salary for your title is ", 
+                                               priceR::format_dollars(my_title_max),
                                                ". Your current salary is at ",
                                                round(my_salary/my_title_max, 1)*100,
                                                "% of your title's max salary."),)
@@ -154,9 +161,9 @@ server <- function(input, output) {
              my_division, 
              "'s Department of ", 
              my_department, 
-             ".\nYour annual salary (adjusted for FTE) is $", 
-             my_salary, ".", "The minimum salary of your title is $", 
-             my_title_min,
+             ".\nYour annual salary (adjusted for FTE) is ", 
+             priceR::format_dollars(my_salary), ".", "The minimum salary of your title is ", 
+             priceR::format_dollars(my_title_min),
              my_title_max_formatted)
     })
 }
