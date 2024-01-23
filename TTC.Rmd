@@ -277,6 +277,32 @@ salary_ranges <- bind_rows(salaries1, salaries2) %>%
 saveRDS(salary_ranges, "My_TTC_salary/www/salary_ranges_sep2022.RDS")
 ```
 
+### Jan 2024 data
+
+```{r}
+salaries1 <- read_delim("data/Salary Structure – Human Resources – UW–Madison Jan 2024.txt", delim = "\t", skip = 1,
+                        col_names = c("salary_grade", "salary_range", "salary_range_hourly", "salary_range_9mo", "salary_range_hourly_9mo")) %>% 
+  select(salary_grade, salary_range) %>% 
+    mutate(salary_range = str_remove_all(salary_range, "[,\\$]")) %>% 
+  separate(salary_range, c("min_salary", "max_salary"), sep = "–") %>% 
+  mutate(across(ends_with("_salary"), as.numeric))
+
+salaries2 <- read_csv("data/salaries_2_january2024.csv") %>% 
+  mutate(salary_range = str_remove(salary_range, fixed(" (Minimum)"))) %>% 
+  mutate(salary_range = case_when(str_detect(salary_range, fixed("$")) ~ salary_range,
+                                  TRUE~ NA_character_)) %>% 
+  mutate(salary_range = str_remove_all(salary_range, "[,\\$]")) %>% 
+  separate(salary_range, c("min_salary", "max_salary"), sep = "–") %>% 
+  mutate(across(ends_with("_salary"), as.numeric))
+
+salary_ranges <- bind_rows(salaries1, salaries2) %>% 
+  mutate(salary_grade = as.character(salary_grade),
+         salary_grade = str_pad(salary_grade, 3, side = "left", pad = "0"))
+
+saveRDS(salary_ranges, "My_TTC_salary/www/salary_ranges_jan2024.RDS")
+write_csv(salary_ranges, "data/salary_ranges_jan_2024.csv")
+```
+
 ```{r}
 
 library(gghighlight)

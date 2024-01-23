@@ -17,7 +17,7 @@ library(stringr)
   janitor::clean_names() %>% 
   filter(full_time_equivalent > 0.01 & current_annual_contracted_salary > 1000)
 
-salary_ranges <- readRDS("www/salary_ranges_sep2022.RDS")
+salary_ranges <- readRDS("www/salary_ranges_jan2024.RDS")
 
 ttc <- ttc %>% 
   left_join(salary_ranges, by = "salary_grade")
@@ -78,7 +78,7 @@ ui <- fluidPage(
            p("Are you a member of", a("United Faculty & Academic Staff Local 223", href="http://ufas.wi.aft.org/join-union"), "yet? Without our union, we wouldn't have these data."),
            p("Salary data last updated: August 2022",
              br(),
-             "Salary ranges last updated: September 16, 2022"),
+             "Salary ranges last updated: January 24, 2024"),
            p("App development: Harald Kliems", a("@HaraldKliems", href="https://twitter.com/HaraldKliems"))
         )
     )

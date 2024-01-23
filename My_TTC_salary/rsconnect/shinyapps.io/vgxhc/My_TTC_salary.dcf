@@ -5,8 +5,7 @@ account: vgxhc
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 5117060
-bundleId: 8174597
+bundleId: 8174807
 url: https://haraldkliems.shinyapps.io/My_TTC_salary/
 asMultiple: FALSE
 asStatic: FALSE
-ignoredFiles: .~lock.Updated August 2022 All Faculty and Staff Title and Salary Information.xlsx#
