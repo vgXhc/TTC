@@ -12,10 +12,23 @@ library(readxl)
 library(dplyr)
 library(ggplot2)
 library(stringr)
+library(lubridate)
 
-  ttc <- read_xlsx("Updated August 2022 All Faculty and Staff Title and Salary Information.xlsx") %>% 
+  ttc <- read_xlsx("Updated March 2022 All Faculty and Staff Title and Salary Information.xlsx") %>% 
   janitor::clean_names() %>% 
-  filter(full_time_equivalent > 0.01 & current_annual_contracted_salary > 1000)
+  filter(full_time_equivalent > 0.01 & current_annual_contracted_salary > 1000) |> 
+    mutate(date_of_hire = ymd(date_of_hire),
+           length_tenure = ymd("2022-03-01") - date_of_hire, 
+           length_tenure_fct = case_when(length_tenure < 365 ~ "less than 1 year",
+                                         length_tenure >= 365 & length_tenure <= 1095 ~ "1-3 years",
+                                         length_tenure > 1095 & length_tenure <= 1825 ~ "3-5 years",
+                                         length_tenure > 1825 & length_tenure <= 3650 ~ "5-10 years",
+                                         length_tenure > 3650 ~ "more than 10 years"),
+           length_tenure_fct = forcats::fct(length_tenure_fct, levels = c("less than 1 year",
+                                                                          "1-3 years",
+                                                                          "3-5 years",
+                                                                          "5-10 years",
+                                                                          "more than 10 years")))
 
 salary_ranges <- readRDS("www/salary_ranges_jan2024.RDS")
 
@@ -43,18 +56,18 @@ ui <- fluidPage(
           textInput(
             "last_name_input",
             "Enter your last name",
-            value = "Kliems"
+            value = "Cramer"
           ),
           textInput(
             "first_name_input",
             "Enter your first name",
-            value = "Harald"),
+            value = "Robert"),
           selectInput(
             "division_input",
             "Your school/division",
             divisions,
             multiple = F,
-            selected = "Sch of Med & Public Health"
+            selected = "General Services"
           ),
           radioButtons(
             "comparison_select",
@@ -79,7 +92,7 @@ ui <- fluidPage(
            p("Salary data last updated: August 2022",
              br(),
              "Salary ranges last updated: January 24, 2024"),
-           p("App development: Harald Kliems", a("@HaraldKliems", href="https://twitter.com/HaraldKliems"))
+           p("App development: Harald Kliems", a("@HaraldKliems", href="https://fosstodon.org/@haraldkliems"))
         )
     )
 )
@@ -109,7 +122,8 @@ server <- function(input, output) {
       salaries <- salaries() %>% filter(title == my_title)
       ggplot(salaries, aes(current_annual_contracted_salary, title)) +
         geom_boxplot(size = 1, outlier.shape = NA, width = .5, alpha = .1) +
-        geom_jitter(height = 0.1, alpha = .3) +
+        geom_jitter(aes(color = length_tenure_fct), height = 0.1, alpha = 1, size = 1.5) +
+        scale_color_viridis_d(name = "time since first hire") +
         geom_segment(aes(x = min_salary, xend = max_salary, y = 0.6, yend = 0.6), size = 2, arrow = arrow()) +
         geom_text(aes(label = paste0("Min salary \n", title), x = min_salary, y = 0.5), hjust = 0)+
         geom_text(aes(label = paste0("Max salary \n", title), x = max_salary, y = 0.5), hjust = 1)+
